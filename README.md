@@ -1,7 +1,7 @@
 # Ezan Bot Altyapısı!
 
 ## 📑 Bot Performansı
-- [x] Otomatik Sese Girme
+- [x] Ayarlanabilir Sistem
 - [x] Seste Ezan Okuma
 - [x] Uygulama Komutları
 
