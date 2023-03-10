@@ -1,22 +1,23 @@
 {
-  "name": "ticket-system",
-  "version": "5.0.0",
-  "description": "Light Server Transcript Ticket System By Raven!",
+  "name": "raven",
+  "version": "9.9.9",
+  "description": "Discord.JS v14 Slash Uyumlu Altyapı",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": [],
-  "author": "Ly3ssia",
-  "license": "ISC",
+  "author": "",
+  "license": "MIT",
   "dependencies": {
-    "@discordjs/builders": "^1.0.0",
+    "@discordjs/rest": "^1.1.0",
     "croxydb": "^0.0.7",
-    "discord.js": "^14.0.1",
-    "express": "^4.18.1",
-    "fs": "^0.0.1-security",
-    "http": "^0.0.1-security",
-    "path": "^0.12.7"
+    "discord-api-types": "^0.37.5",
+    "discord-gamecord": "^4.3.0",
+    "discord.js": "^14.3.0",
+    "moment": "^2.29.4",
+    "moment-duration-format": "^2.3.2",
+    "os": "^0.1.2",
+    "request": "^2.88.2"
   },
   "engines": {
     "node": "16.x"
