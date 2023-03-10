@@ -1,192 +1,193 @@
-const {PermissionsBitField, EmbedBuilder, ButtonStyle, Client, GatewayIntentBits, ChannelType, Partials, ActionRowBuilder, SelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, InteractionType, SelectMenuInteraction, ButtonBuilder } = require("discord.js");
-const config = require("./config.js");
+const { Client, GatewayIntentBits, Partials } = require("discord.js");
+const INTENTS = Object.values(GatewayIntentBits);
+const PARTIALS = Object.values(Partials);
 const Discord = require("discord.js")
 const db = require("croxydb")
 const client = new Client({
-  partials: [
-    Partials.Message, // for message
-    Partials.Channel, // for text channel
-    Partials.GuildMember, // for guild member
-    Partials.Reaction, // for message reaction
-    Partials.GuildScheduledEvent, // for guild events
-    Partials.User, // for discord user
-    Partials.ThreadMember, // for thread member
-  ],
-  intents: [
-    GatewayIntentBits.Guilds, // for guild related things
-    GatewayIntentBits.GuildMembers, // for guild members related things
-    GatewayIntentBits.GuildBans, // for manage guild bans
-    GatewayIntentBits.GuildEmojisAndStickers, // for manage emojis and stickers
-    GatewayIntentBits.GuildIntegrations, // for discord Integrations
-    GatewayIntentBits.GuildWebhooks, // for discord webhooks
-    GatewayIntentBits.GuildInvites, // for guild invite managing
-    GatewayIntentBits.GuildVoiceStates, // for voice related things
-    GatewayIntentBits.GuildPresences, // for user presence things
-    GatewayIntentBits.GuildMessages, // for guild messages things
-    GatewayIntentBits.GuildMessageReactions, // for message reactions things
-    GatewayIntentBits.GuildMessageTyping, // for message typing things
-    GatewayIntentBits.DirectMessages, // for dm messages
-    GatewayIntentBits.DirectMessageReactions, // for dm message reaction
-    GatewayIntentBits.DirectMessageTyping, // for dm message typinh
-    GatewayIntentBits.MessageContent, // enable if you need message content things
-  ],
+    intents: INTENTS,
+    allowedMentions: {
+        parse: ["users"]
+    },
+    partials: PARTIALS,
+    retryLimit: 3
 });
 
-module.exports = client;
+global.client = client;
+client.commands = (global.commands = []);
+
+const { readdirSync } = require("fs")
+const { TOKEN } = require("./config.json");
+readdirSync('./commands').forEach(f => {
+  if(!f.endsWith(".js")) return;
+
+ const props = require(`./commands/${f}`);
+
+ client.commands.push({
+       name: props.name.toLowerCase(),
+       description: props.description,
+       options: props.options,
+       dm_permission: props.dm_permission,
+       type: 1
+ });
+
+console.log(`[COMMAND] ${props.name} komutu yüklendi.`)
+
+});
+readdirSync('./events').forEach(e => {
+
+  const eve = require(`./events/${e}`);
+  const name = e.split(".")[0];
+
+  client.on(name, (...args) => {
+            eve(client, ...args)
+        });
+console.log(`[EVENT] ${name} eventi yüklendi.`)
+});
 
 
-client.login(config.token || process.env.TOKEN)
+client.login(TOKEN)
 
-client.on("ready", async() => {
-  console.log("Bot aktif!")
-  const Discord = require("discord.js")
-const channel = config.channel
-const as = client.channels.cache.get(channel)
-const embed = new EmbedBuilder()
-.setColor("127896")
-.setAuthor({ name: `Raven | Destek Sistemi`, iconURL: as.guild.iconURL({ dynamic: true }) })
-.setDescription("Sunucumuzda destek oluşturabilmek için aşağıdaki butona basıp bir kategori seçmeniz gerekiyor.")
-.addFields(
-     { name: '\u200B', value: '\u200B' },
-     { name: "🎉 Çekiliş Kazandım ", value: "Bir çekiliş kazandıysan ödülünü burdan alacaksın.", inline: true },
-     { name: "☢️ Altyapı Çalıntı Bildirimi ", value: "Biri altyapımızı çaldıysa onu sunucudan yasaklatabilirsin.", inline: true },
-     { name: "⛔ Kullanıcı Bildirimi ", value: "Bir kullanıcıyı bildirirsin.", inline: true },
- )
- .setThumbnail("https://cdn.discordapp.com/attachments/1016663875342569562/1045979609965015080/ravenDestek.png")
- .setFooter({ text: "Kod destek hakkında yardım almak için '⛔・kod-destek' kanalını kullanın!", iconURL: "https://cdn.discordapp.com/attachments/1016663875342569562/1045979609965015080/ravenDestek.png" })
-
-const row = new Discord.ActionRowBuilder()
-.addComponents(
-new Discord.ButtonBuilder()
-.setLabel("Destek Talebi Oluştur")
-.setStyle(Discord.ButtonStyle.Secondary)
-.setCustomId("destek")
-.setEmoji("🎫")
-)
-as.send({embeds: [embed], components:[row]})
-})
-client.on("interactionCreate", async(interaction) => {
-if(interaction.customId === "destek") {
-  const row = new Discord.ActionRowBuilder()
-  .addComponents(
-    new Discord.ButtonBuilder()
-    .setEmoji("🎉")
-    .setStyle(Discord.ButtonStyle.Success)
-    .setCustomId("Çekiliş Kazandım"), 
-    new Discord.ButtonBuilder()
-    .setEmoji("☢️")
-    .setStyle(Discord.ButtonStyle.Primary)
-    .setCustomId("Altyapı Çalıntı Bildirimi"),
-    new Discord.ButtonBuilder()
-    .setEmoji("⛔")
-    .setStyle(Discord.ButtonStyle.Danger)
-    .setCustomId("Kullanıcı Bildirimi"),
-
-  )
-  const embed = new EmbedBuilder()
-  .setDescription("Hangi kategoriyi seçmek istiyorsun?")
-  .setColor("127896")
-interaction.reply({embeds: [embed], components: [row], ephemeral: true}).catch(error => {})
-
-
-}
-
-const butonlar = ["Çekiliş Kazandım","Altyapı Çalıntı Bildirimi","Kullanıcı Bildirimi"]
-if(butonlar.includes(interaction.customId)) {
-  await interaction.deferUpdate()
-  const data = db.get(`ticket_${interaction.guild.id}`) || "1"
-  interaction.guild.channels.create({
-             name: `ticket-${data}`,
-               type: ChannelType.GuildText,
-
-               permissionOverwrites: [
-                 {
-                     id: interaction.guild.id,
-                     deny: [PermissionsBitField.Flags.ViewChannel]
-                 },
-                 {
-                     id: interaction.user.id,
-                     allow: [PermissionsBitField.Flags.ViewChannel]
-                 },
-                 {
-                     id: config.staff,
-                     allow: [PermissionsBitField.Flags.ViewChannel]
-                 },
-             ]
-           })
-
-
-                 .then((c)=>{
-
-const embed = new EmbedBuilder()
-.setAuthor({name: "Raven - Destek Sistemi!", iconURL: interaction.guild.iconURL()})
-.setDescription("Hey, destek talebi açtığına göre önemli bir konu olmalı.Bu sürede birini etiketleme ve sakince sorununu belirt.")
-.addFields(
-  { name: '\u200B', value: '\u200B' },
-  {name: "Kullanıcı:", value: `${interaction.user.tag}`, inline: true},
-  {name: "Sebep:", value: `${interaction.customId}`, inline: true},
-  {name: "Destek Sırası:", value: `${data}`, inline: true}
-)
-.setColor("127896")
-const row = new ActionRowBuilder()
-.addComponents(
-  new Discord.ButtonBuilder()
-  .setEmoji("📑")
-  .setLabel("Kaydet Ve Kapat")
-  .setStyle(Discord.ButtonStyle.Secondary)
-  .setCustomId("kapat"),
-  new Discord.ButtonBuilder()
-  .setEmoji("<:bilgi:1026204345060036691>")
-  .setLabel("Mesajlar")
-  .setStyle(Discord.ButtonStyle.Secondary)
-  .setCustomId("mesaj")
-)
-db.set(`kapat_${c.id}`, interaction.user.id)
-db.add(`ticket_${interaction.guild.id}`, +1)
-c.send({embeds: [embed], components: [row]}).then(a => {
-a.pin()
-
-                 })
-               })
-}
+client.on("guildMemberAdd", member => {
+  const kanal = db.get(`hgbb_${member.guild.id}`)
+  if(!kanal) return;
+  member.guild.channels.cache.get(kanal).send({content: `:inbox_tray: | ${member} sunucuya katıldı! Sunucumuz **${member.guild.memberCount}** kişi oldu.`})
 })
 
-client.on("messageCreate", async(message) => {
-if(message.channel.name.includes("ticket")) {
-  if(message.author?.bot) return;
-db.push(`mesaj_${message.channel.id}`, `${message.author.username}: ${message.content}`)
+client.on("messageCreate", async message => {
+  const db = require("croxydb");
+
+  if (await db.get(`afk_${message.author.id}`)) {
+   
+    db.delete(`afk_${message.author.id}`);
+
+    message.reply("Afk Modundan Başarıyla Çıkış Yaptın!");
+  }
+
+  var kullanıcı = message.mentions.users.first();
+  if (!kullanıcı) return;
+  var sebep = await db.get(`afk_${kullanıcı.id}`);
+
+  if (sebep) {
+    message.reply("Etiketlediğin Kullanıcı **"+sebep+"** Sebebiyle Afk Modunda!");
+  }
+});
+client.on("guildMemberAdd", member => {
+  const rol = db.get(`otorol_${member.guild.id}`)
+  if(!rol) return;
+  member.roles.add(rol).catch(() => {})
+
+})
+client.on("guildMemberAdd", member => {
+  const tag = db.get(`ototag_${member.guild.id}`)
+  if(!tag) return;
+  member.setNickname(`${tag} | ${member.displayName}`)
+})
+client.on("guildMemberRemove", member => {
+  const kanal = db.get(`hgbb_${member.guild.id}`)
+  if(!kanal) return;
+  member.guild.channels.cache.get(kanal).send({content: `:outbox_tray: | ${member} sunucudan ayrıldı! Sunucumuz **${member.guild.memberCount}** kişi oldu.`})
+})
+
+client.on("messageCreate", (message) => {
+  const db = require("croxydb")
+  let kufur = db.fetch(`kufurengel_${message.guild.id}`)
+  if(!kufur) return;
+  
+  if(kufur) {
+  const kufurler = [
+    
+    "amk",
+    "piç",
+    "yarrak",
+    "oç",
+    "göt",
+    "amq",
+    "yavşak",
+    "amcık",
+    "amcı",
+    "orospu",
+    "sikim",
+    "sikeyim",
+    "aq",
+    "mk"
+       
+  ]
+  
+if(kufurler.some(alo => message.content.toLowerCase().includes(alo))) {
+message.delete()
+message.channel.send(`Şşşt! <@${message.author.id}>, Bu Sunucuda Küfür Engel Sistemi Aktif!`)
+}
 }
 })
-client.on("interactionCreate", async(message) => {
-if(message.customId === "mesaj") {
-  const fs = require("fs")
-  const wait = require('node:timers/promises').setTimeout;
-const datas = db.fetch(`mesaj_${message.channel.id}`)
-if(!datas) {
-  fs.writeFileSync(`${message.channel.id}.json`, "Bu kanalda hic bir mesaj bulunamadi!");
-  message.reply({files: [`./${message.channel.id}.json`]}).catch(error => {})
-}
-if(datas) {
-const data = db.fetch(`mesaj_${message.channel.id}`).join("\n")
-fs.writeFileSync(`${message.channel.id}.json`, data);
-message.reply({files: [`./${message.channel.id}.json`]}).catch(error => {})
+client.on("messageCreate", (message) => {
+  const db = require("croxydb")
+  let reklamlar = db.fetch(`reklamengel_${message.guild.id}`)
+  if(!reklamlar) return;
+  
+  if(reklamlar) {
+
+  const linkler = [
+    
+    ".com.tr",
+    ".net",
+    ".org",
+    ".tk",
+    ".cf",
+    ".gf",
+    "https://",
+    ".gq",
+    "http://",
+    ".com",
+    ".gg",
+    ".porn",
+    ".edu",
+    "web."
+       
+  ]
+  
+if(linkler.some(alo => message.content.toLowerCase().includes(alo))) {
+message.delete()
+message.channel.send(`Şşşt! <@${message.author.id}>, Bu Sunucuda Reklam Engel Sistemi Aktif!`)
 }
 }
 })
 
-process.on("unhandledRejection", async(error) => {
-console.log("Bir hata olustu: "+error)
+client.on("messageCreate", (message) => {
+  
+  let saas = db.fetch(`saas_${message.guild.id}`)
+  if(!saas) return;
+  
+  if(saas) {
+  
+  let selaamlar = message.content.toLowerCase()  
+if(selaamlar === 'sa' || selaamlar === 'slm' || selaamlar === 'sea' || selaamlar === ' selamünaleyküm' || selaamlar === 'Selamün Aleyküm' || selaamlar === 'selam'){
 
-})
-client.on("interactionCreate", async(interaction) => {
-if(interaction.customId === "kapat") {
-  const id = db.fetch(`kapat_${interaction.channel.id}`)
-  const channel = interaction.channel
- channel.permissionOverwrites.edit(id, { ViewChannel: false });
-
-                   const embed = new EmbedBuilder()
-                   .setDescription("Bu destek talebi sonlandırıldı, umarım sorun çözülmüştür :)")
-                   .setColor("127896")
-                   await interaction.reply({embeds: [embed]})
+message.channel.send(`<@${message.author.id}> Aleykümselam, Hoşgeldin 👋`)
 }
+}
+})
+client.on("interactionCreate", async interaction => {
+  if (!interaction.isButton()) return;
+  let message = await interaction.channel.messages.fetch(interaction.message.id)  
+  if(interaction.customId == "moderasyon") {
+const embed = new Discord.EmbedBuilder()
+.setTitle("Yardım Menüsü!")
+.setDescription("/ban-list - **Banlı Kullanıcıları Gösterir!**\n/ban - **Bir Üyeyi Yasaklarsın!**\n/emojiler - **Emojileri Görürsün!**\n/forceban - **ID İle Bir Kullanıcıyı Yasaklarsın!**\n/giriş-çıkış - **Giriş çıkış kanalını ayarlarsın!**\n/kanal-açıklama - **Kanalın Açıklamasını Değiştirirsin!**\n/kick - **Bir Üyeyi Atarsın!**\n/küfür-engel - **Küfür Engel Sistemini Açıp Kapatırsın!**\n/oto-rol - **Otorolü Ayarlarsın!**\n/oto-tag - **Oto Tagı Ayarlarsın!**\n/oylama - **Oylama Açarsın!**\n/reklam-engel - **Reklam Engel Sistemini Açarsın!**\n/rol-al - **Rol Alırsın**\n/rol-oluştur - **Rol Oluşturursun!**\n/rol-ver - **Rol Verirsin!**\n/sa-as - **Selam Sistemine Bakarsın!**\n/temizle - **Mesaj Silersin!**\n/unban - **Bir üyenin yasağını kaldırırsın!**")
+.setColor("Random")
+interaction.reply({embeds: [embed], components: [], ephemeral: true})
+  }
+  if(interaction.customId == "kayıt") {
+    const embed = new Discord.EmbedBuilder()
+    .setTitle("Yardım Menüsü!")
+    .setDescription("/kayıtlı-rol - **Kayıtlı Rolünü Ayarlarsın!**\n/kayıt-et - **Bir Üyeyi Kayıt Edersin!**")
+    .setColor("Random")
+    interaction.reply({embeds: [embed], components: [], ephemeral: true})
+  }
+  if(interaction.customId == "kullanıcı") {
+    const embed = new Discord.EmbedBuilder()
+    .setTitle("Yardım Menüsü!")
+    .setDescription("/avatar - **Bir Kullanıcının Avatarına Bakarsın!**\n/afk - **Sebepli Afk Olursun!**\n/emoji-yazı - **Bota Emoji İle Yazı Yazdırırsın!**\n/istatistik - **Bot istatistiklerini gösterir!**\n/kurucu-kim - **Kurucuyu Gösterir!**\n/ping - **Botun pingini gösterir!**\n/yardım - **Yardım Menüsünü Gösterir!**\n/slot - **Slot Oyunu Oynarsın!**")
+    .setColor("Random")
+    interaction.reply({embeds: [embed], components: [], ephemeral: true})
+  }
 })
